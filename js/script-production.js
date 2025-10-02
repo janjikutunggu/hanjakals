@@ -6,7 +6,7 @@
 // Konfigurasi Production
 const CONFIG = {
     // GANTI dengan URL Cloudflare Worker Anda atau gunakan mock untuk demo
-    WORKER_URL: 'https://your-worker.your-subdomain.workers.dev', // Untuk production
+    WORKER_URL: 'https://temp-mail-api.rayhanarditya88.workers.dev', // Untuk production
     // Atau gunakan mock server untuk demo:
     // WORKER_URL: 'https://gmail-temp-mail-mock-api.your-domain.com',
     
