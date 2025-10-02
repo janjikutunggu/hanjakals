@@ -1,138 +1,93 @@
-/*
-  Gmail Temp Mail Frontend Script
-  Mengambil email dari Cloudflare Worker → Gmail API
-  Author: @rayhanarditya88 - Oct 2025
-*/
-
-const API_URL = "https://temp-mail-api.rayhanarditya88.workers.dev/api/inbox";
-const CONNECTED_EMAIL = "lebaleuyi@gmail.com";
-
-const tbody = document.querySelector("#emails tbody");
-const responsiveDiv = document.getElementById("emails-responsive");
-const statusLed = document.getElementById("status-led");
+// script-production.js
+const API_BASE = "https://temp-mail-api.rayhanarditya88.workers.dev/api";
+const emailInput = document.getElementById("addr");
+const subdomainInput = document.getElementById("subdomain");
+const tableBody = document.querySelector("#emails tbody");
 const statusText = document.getElementById("status-text");
-const loadingSpinner = document.getElementById("loading-spinner");
+const statusLed = document.getElementById("status-led");
 const errorMessage = document.getElementById("error-message");
-const autoRefreshCheckbox = document.getElementById("auto-refresh");
-const refreshIntervalSelect = document.getElementById("refresh-interval");
+const spinner = document.getElementById("loading-spinner");
 
-let refreshTimer = null;
+let currentEmail = "";
 
-// Fungsi utama: ambil email dari Worker
-async function fetchEmails() {
-  setStatus("loading");
-  loadingSpinner.style.display = "block";
-  errorMessage.classList.add("hidden");
-
-  try {
-    const res = await fetch(`${API_URL}?email=${encodeURIComponent(CONNECTED_EMAIL)}`);
-    const data = await res.json();
-
-    if (!res.ok || !data.messages) {
-      throw new Error(data.error || "Gagal memuat data");
-    }
-
-    renderEmails(data.messages);
-    setStatus("online");
-  } catch (err) {
-    console.error("Gagal memuat email:", err);
-    setStatus("offline");
-    showError(err.message);
-  } finally {
-    loadingSpinner.style.display = "none";
-  }
+async function genEmail() {
+  const random = Math.random().toString(36).substring(2, 10);
+  const sub = subdomainInput.value.trim();
+  currentEmail = sub
+    ? `${random}@${sub}.netapp.my.id`
+    : `${random}@netapp.my.id`;
+  emailInput.value = currentEmail;
+  await refreshMail();
 }
 
-// Render daftar email ke tabel dan tampilan mobile
-function renderEmails(messages) {
-  tbody.innerHTML = "";
-  responsiveDiv.innerHTML = "";
-
-  if (messages.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="5" style="text-align:center;">📭 Tidak ada email ditemukan</td></tr>`;
+async function refreshMail() {
+  if (!currentEmail) {
+    errorMessage.textContent = "Generate email terlebih dahulu.";
+    errorMessage.classList.remove("hidden");
     return;
   }
 
-  messages.forEach((msg, idx) => {
-    const tr = document.createElement("tr");
-    tr.innerHTML = `
-      <td>${idx + 1}</td>
-      <td>${msg.from || "-"}</td>
-      <td>${msg.subject || "(tanpa subjek)"}</td>
-      <td>${msg.date || "-"}</td>
-      <td><button onclick="alert('ID: ${msg.id}\\nSubject: ${msg.subject}')">📩 Detail</button></td>
-    `;
-    tbody.appendChild(tr);
+  spinner.style.display = "block";
+  errorMessage.classList.add("hidden");
+  statusLed.className = "status-led offline";
+  statusText.textContent = "Loading...";
 
-    // Responsive view (mobile)
-    const block = document.createElement("div");
-    block.className = "email-card";
-    block.innerHTML = `
-      <p><strong>From:</strong> ${msg.from || "-"}</p>
-      <p><strong>Subject:</strong> ${msg.subject || "(tanpa subjek)"}</p>
-      <p><strong>Date:</strong> ${msg.date || "-"}</p>
-      <p><strong>Snippet:</strong> ${msg.snippet || ""}</p>
-      <hr/>
-    `;
-    responsiveDiv.appendChild(block);
-  });
-}
+  try {
+    const res = await fetch(`${API_BASE}/inbox?email=${encodeURIComponent(currentEmail)}`);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
 
-// Ubah status LED
-function setStatus(state) {
-  statusLed.classList.remove("offline", "online", "loading");
-  if (state === "online") {
-    statusLed.classList.add("online");
-    statusText.textContent = "Online";
-  } else if (state === "loading") {
-    statusLed.classList.add("loading");
-    statusText.textContent = "Loading...";
-  } else {
-    statusLed.classList.add("offline");
+    tableBody.innerHTML = "";
+
+    if (data.messages && data.messages.length > 0) {
+      data.messages.forEach((msg, i) => {
+        const tr = document.createElement("tr");
+        tr.innerHTML = `
+          <td>${i + 1}</td>
+          <td>${msg.from || "-"}</td>
+          <td>${msg.subject || "(No Subject)"}</td>
+          <td>${msg.date || "-"}</td>
+          <td><button onclick="viewMail('${msg.id}')">Open</button></td>
+        `;
+        tableBody.appendChild(tr);
+      });
+      statusText.textContent = "Online";
+      statusLed.className = "status-led online";
+    } else {
+      statusText.textContent = "No Emails";
+      statusLed.className = "status-led warning";
+      tableBody.innerHTML = `<tr><td colspan="5" style="text-align:center;">Belum ada email</td></tr>`;
+    }
+  } catch (e) {
+    console.error(e);
+    errorMessage.textContent = `Failed to fetch: ${e.message}`;
+    errorMessage.classList.remove("hidden");
     statusText.textContent = "Offline";
+    statusLed.className = "status-led offline";
+  } finally {
+    spinner.style.display = "none";
   }
 }
 
-// Tampilkan pesan error
-function showError(msg) {
-  errorMessage.textContent = `❌ ${msg}`;
-  errorMessage.classList.remove("hidden");
-}
+async function viewMail(id) {
+  try {
+    const res = await fetch(`${API_BASE}/message?id=${id}&email=${encodeURIComponent(currentEmail)}`);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
 
-// Tombol manual
-function refreshMail() {
-  fetchEmails();
-}
-
-// Auto refresh
-function setupAutoRefresh() {
-  clearInterval(refreshTimer);
-  if (autoRefreshCheckbox.checked) {
-    const seconds = parseInt(refreshIntervalSelect.value);
-    refreshTimer = setInterval(fetchEmails, seconds * 1000);
+    const body = data.body || "(Tidak ada isi)";
+    alert(`Dari: ${data.from}\nSubjek: ${data.subject}\n\n${body}`);
+  } catch (e) {
+    alert("Gagal membuka email: " + e.message);
   }
 }
 
-// Generate alamat email baru (dummy untuk demo)
-function genEmail() {
-  const randomName = Math.random().toString(36).substring(2, 10);
-  const subdomain = document.getElementById("subdomain").value.trim();
-  const domain = subdomain ? `${subdomain}.netapp.my.id` : "netapp.my.id";
-  const newEmail = `${randomName}@${domain}`;
-  document.getElementById("addr").value = newEmail;
-  confetti();
-}
-
-// Copy email
 function copyEmail() {
-  const emailField = document.getElementById("addr");
-  navigator.clipboard.writeText(emailField.value);
-  alert(`📋 Email disalin: ${emailField.value}`);
+  if (!currentEmail) return;
+  navigator.clipboard.writeText(currentEmail);
+  alert(`📋 ${currentEmail} disalin`);
 }
 
-// Inisialisasi
 document.addEventListener("DOMContentLoaded", () => {
-  fetchEmails();
-  autoRefreshCheckbox.addEventListener("change", setupAutoRefresh);
-  refreshIntervalSelect.addEventListener("change", setupAutoRefresh);
+  genEmail();
 });
