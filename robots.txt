@@ -1,4 +1,0 @@
-User-agent: *
-Disallow:
-
-Sitemap: https://mehmetkahya0.github.io/temp-mail/sitemap.xml 
