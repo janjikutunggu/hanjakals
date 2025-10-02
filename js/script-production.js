@@ -1,93 +1,95 @@
-// script-production.js
-const API_BASE = "https://temp-mail-api.rayhanarditya88.workers.dev/api";
-const emailInput = document.getElementById("addr");
-const subdomainInput = document.getElementById("subdomain");
-const tableBody = document.querySelector("#emails tbody");
-const statusText = document.getElementById("status-text");
-const statusLed = document.getElementById("status-led");
-const errorMessage = document.getElementById("error-message");
-const spinner = document.getElementById("loading-spinner");
-
-let currentEmail = "";
-
-async function genEmail() {
-  const random = Math.random().toString(36).substring(2, 10);
-  const sub = subdomainInput.value.trim();
-  currentEmail = sub
-    ? `${random}@${sub}.netapp.my.id`
-    : `${random}@netapp.my.id`;
-  emailInput.value = currentEmail;
-  await refreshMail();
-}
+const API_BASE = "https://temp-mail-api.rayhanarditya88.workers.dev";
 
 async function refreshMail() {
-  if (!currentEmail) {
-    errorMessage.textContent = "Generate email terlebih dahulu.";
-    errorMessage.classList.remove("hidden");
+  const email = document.getElementById("addr").value.trim();
+  if (!email) return alert("Alamat email belum dibuat!");
+
+  const inboxUrl = `${API_BASE}/api/inbox?email=${encodeURIComponent(email)}`;
+  showStatus("Loading...");
+
+  try {
+    const res = await fetch(inboxUrl);
+    const data = await res.json();
+
+    if (!data.messages || data.messages.length === 0) {
+      showStatus("Tidak ada email baru");
+      renderEmails([]);
+      return;
+    }
+
+    showStatus("Online");
+    renderEmails(data.messages, email);
+  } catch (e) {
+    showStatus("Failed to fetch");
+    console.error(e);
+  }
+}
+
+function renderEmails(messages, email) {
+  const tbody = document.querySelector("#emails tbody");
+  tbody.innerHTML = "";
+
+  if (messages.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="5" style="text-align:center;">Tidak ada email</td></tr>`;
     return;
   }
 
-  spinner.style.display = "block";
-  errorMessage.classList.add("hidden");
-  statusLed.className = "status-led offline";
-  statusText.textContent = "Loading...";
+  messages.forEach((msg, i) => {
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
+      <td>${i + 1}</td>
+      <td>-</td>
+      <td><em>(Loading...)</em></td>
+      <td>-</td>
+      <td><button class="primary-button" onclick="loadMessage('${msg.id}', '${email}')">Buka</button></td>
+    `;
+    tbody.appendChild(tr);
+    // Fetch detail per message
+    fetchMessageDetails(msg.id, email, tr);
+  });
+}
 
+async function fetchMessageDetails(id, email, rowEl) {
   try {
-    const res = await fetch(`${API_BASE}/inbox?email=${encodeURIComponent(currentEmail)}`);
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const data = await res.json();
+    const res = await fetch(`${API_BASE}/api/message?id=${id}&email=${email}`);
+    const msg = await res.json();
 
-    tableBody.innerHTML = "";
-
-    if (data.messages && data.messages.length > 0) {
-      data.messages.forEach((msg, i) => {
-        const tr = document.createElement("tr");
-        tr.innerHTML = `
-          <td>${i + 1}</td>
-          <td>${msg.from || "-"}</td>
-          <td>${msg.subject || "(No Subject)"}</td>
-          <td>${msg.date || "-"}</td>
-          <td><button onclick="viewMail('${msg.id}')">Open</button></td>
-        `;
-        tableBody.appendChild(tr);
-      });
-      statusText.textContent = "Online";
-      statusLed.className = "status-led online";
-    } else {
-      statusText.textContent = "No Emails";
-      statusLed.className = "status-led warning";
-      tableBody.innerHTML = `<tr><td colspan="5" style="text-align:center;">Belum ada email</td></tr>`;
-    }
+    const cells = rowEl.querySelectorAll("td");
+    cells[1].textContent = msg.from || "-";
+    cells[2].textContent = msg.subject || "-";
+    cells[3].textContent = msg.date || "-";
+    cells[4].innerHTML = `<button class="primary-button" onclick="showMessage('${msg.subject}', '${msg.from}', \`${msg.body.replace(/`/g, "\\`")}\`)">📨 Lihat</button>`;
   } catch (e) {
-    console.error(e);
-    errorMessage.textContent = `Failed to fetch: ${e.message}`;
-    errorMessage.classList.remove("hidden");
-    statusText.textContent = "Offline";
-    statusLed.className = "status-led offline";
-  } finally {
-    spinner.style.display = "none";
+    console.error("Gagal load detail", e);
   }
 }
 
-async function viewMail(id) {
-  try {
-    const res = await fetch(`${API_BASE}/message?id=${id}&email=${encodeURIComponent(currentEmail)}`);
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const data = await res.json();
-
-    const body = data.body || "(Tidak ada isi)";
-    alert(`Dari: ${data.from}\nSubjek: ${data.subject}\n\n${body}`);
-  } catch (e) {
-    alert("Gagal membuka email: " + e.message);
-  }
+function showMessage(subject, from, body) {
+  const html = `
+    <div style="padding:20px; max-width:600px;">
+      <h3>${subject}</h3>
+      <p><strong>From:</strong> ${from}</p>
+      <div style="margin-top:10px; padding:10px; border:1px solid #ddd; background:#fafafa;">
+        ${body}
+      </div>
+    </div>
+  `;
+  const newWin = window.open("", "_blank", "width=600,height=400");
+  newWin.document.write(html);
+  newWin.document.close();
 }
 
-function copyEmail() {
-  if (!currentEmail) return;
-  navigator.clipboard.writeText(currentEmail);
-  alert(`📋 ${currentEmail} disalin`);
+function genEmail() {
+  const randomStr = Math.random().toString(36).substring(2, 10);
+  const subdomain = document.getElementById("subdomain").value.trim() || "netapp.my.id";
+  const email = `${randomStr}@${subdomain}`;
+  document.getElementById("addr").value = email;
+  refreshMail();
 }
 
-document.addEventListener("DOMContentLoaded", () => {
-  genEmail();
-});
+function showStatus(text) {
+  const led = document.getElementById("status-led");
+  const status = document.getElementById("status-text");
+  status.textContent = text;
+  led.className = "status-led " + (text === "Online" ? "online" : text === "Loading..." ? "loading" : "offline");
+}
