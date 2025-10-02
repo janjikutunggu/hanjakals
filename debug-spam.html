@@ -1,0 +1,463 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gmail Temp Mail - Spam Debug</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover { background: #0056b3; }
+        button.debug { background: #28a745; }
+        button.debug:hover { background: #1e7e34; }
+        .result {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 5px;
+            padding: 15px;
+            margin: 10px 0;
+            white-space: pre-wrap;
+            font-family: monospace;
+            max-height: 400px;
+            overflow-y: auto;
+            font-size: 12px;
+        }
+        .success { border-color: #28a745; background: #d4edda; }
+        .error { border-color: #dc3545; background: #f8d7da; }
+        .warning { border-color: #ffc107; background: #fff3cd; }
+        input {
+            width: 100%;
+            padding: 8px;
+            margin: 5px 0;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        .query-result {
+            margin: 10px 0;
+            padding: 10px;
+            background: #f8f9fa;
+            border-left: 4px solid #007bff;
+            border-radius: 0 5px 5px 0;
+        }
+        .found { border-left-color: #28a745; }
+        .empty { border-left-color: #6c757d; }
+        .error-result { border-left-color: #dc3545; }
+        .grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+        @media (max-width: 768px) {
+            .grid { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🐛 Gmail Temp Mail - Spam Debug Tool</h1>
+        <p>Tool khusus untuk debugging masalah email tidak muncul (kemungkinan masuk spam)</p>
+        
+        <div style="background: #fff3cd; padding: 15px; border-radius: 5px; margin: 15px 0;">
+            <strong>🚨 Masalah:</strong> Email masuk ke folder spam di <code>lebaleuyi@gmail.com</code> tapi tidak tampil di aplikasi
+        </div>
+    </div>
+
+    <div class="grid">
+        <div>
+            <div class="container">
+                <h3>🔍 Debug Search Queries</h3>
+                <input type="text" id="debugEmail" value="test@netapp.my.id" placeholder="Email untuk debug">
+                <button class="debug" onclick="runDebugQueries()">Run Debug Queries</button>
+                <div id="debugResult" class="result" style="display:none;"></div>
+            </div>
+
+            <div class="container">
+                <h3>📧 Test Specific Email</h3>
+                <input type="text" id="specificEmail" placeholder="Email address yang spesifik">
+                <button onclick="testSpecificEmail()">Test Email</button>
+                <div id="specificResult" class="result" style="display:none;"></div>
+            </div>
+        </div>
+
+        <div>
+            <div class="container">
+                <h3>🗑️ Spam Folder Check</h3>
+                <input type="text" id="spamEmail" value="test@netapp.my.id" placeholder="Email untuk check spam">
+                <button onclick="checkSpamFolder()">Check Spam Only</button>
+                <div id="spamResult" class="result" style="display:none;"></div>
+            </div>
+
+            <div class="container">
+                <h3>📊 Gmail API Status</h3>
+                <button onclick="checkGmailAPI()">Check API Status</button>
+                <div id="apiStatusResult" class="result" style="display:none;"></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="container">
+        <h3>🔄 Full Debug Report</h3>
+        <input type="text" id="fullDebugEmail" value="test@netapp.my.id" placeholder="Email untuk full debug">
+        <button class="debug" onclick="runFullDebug()">Generate Full Debug Report</button>
+        <div id="fullDebugResult" class="result" style="display:none;"></div>
+    </div>
+
+    <script>
+        const API_BASE = 'https://temp-mail-api.rayhanarditya88.workers.dev';
+        
+        function showResult(elementId, content, type = 'success') {
+            const element = document.getElementById(elementId);
+            element.textContent = content;
+            element.className = `result ${type}`;
+            element.style.display = 'block';
+        }
+
+        async function runDebugQueries() {
+            const email = document.getElementById('debugEmail').value.trim();
+            if (!email) {
+                showResult('debugResult', '❌ Please enter an email address', 'error');
+                return;
+            }
+
+            try {
+                showResult('debugResult', `🔄 Running debug queries for: ${email}...\n\nPlease wait...`, 'warning');
+                
+                const response = await fetch(`${API_BASE}/api/debug?email=${encodeURIComponent(email)}`);
+                const data = await response.json();
+                
+                let result = `🐛 DEBUG REPORT FOR: ${email}\n`;
+                result += `Generated: ${data.timestamp}\n`;
+                result += `${'='.repeat(60)}\n\n`;
+                
+                if (response.ok && data.searches) {
+                    data.searches.forEach((search, index) => {
+                        result += `QUERY ${index + 1}: ${search.query}\n`;
+                        result += `Status: ${search.status || 'N/A'}\n`;
+                        result += `Messages Found: ${search.messageCount || 0}\n`;
+                        result += `Result Size: ${search.resultSizeEstimate || 0}\n`;
+                        
+                        if (search.error) {
+                            result += `Error: ${search.error}\n`;
+                        }
+                        
+                        if (search.messages && search.messages.length > 0) {
+                            result += `Message IDs:\n`;
+                            search.messages.slice(0, 3).forEach((msg, i) => {
+                                result += `  ${i + 1}. ${msg.id}\n`;
+                            });
+                        }
+                        
+                        result += `\n${'-'.repeat(40)}\n`;
+                    });
+                    
+                    const totalFound = data.searches.reduce((sum, s) => sum + (s.messageCount || 0), 0);
+                    result += `\n🎯 SUMMARY:\n`;
+                    result += `Total messages found across all queries: ${totalFound}\n`;
+                    
+                    if (totalFound === 0) {
+                        result += `\n❌ NO MESSAGES FOUND!\n`;
+                        result += `Possible reasons:\n`;
+                        result += `1. No emails sent to this address\n`;
+                        result += `2. Gmail API permissions issue\n`;  
+                        result += `3. Email forwarding not working\n`;
+                        result += `4. Messages in different folder\n`;
+                    }
+                    
+                    showResult('debugResult', result, totalFound > 0 ? 'success' : 'warning');
+                } else {
+                    result += `❌ Debug query failed!\n`;
+                    result += `Status: ${response.status}\n`;
+                    result += `Error: ${JSON.stringify(data, null, 2)}`;
+                    showResult('debugResult', result, 'error');
+                }
+            } catch (error) {
+                showResult('debugResult', `❌ Debug query error!\n\nError: ${error.message}`, 'error');
+            }
+        }
+
+        async function testSpecificEmail() {
+            const email = document.getElementById('specificEmail').value.trim();
+            if (!email) {
+                showResult('specificResult', '❌ Please enter an email address', 'error');
+                return;
+            }
+
+            try {
+                showResult('specificResult', `🔄 Testing: ${email}...`, 'warning');
+                
+                const response = await fetch(`${API_BASE}/api/inbox?email=${encodeURIComponent(email)}`);
+                const data = await response.json();
+                
+                let result = `📧 SPECIFIC EMAIL TEST: ${email}\n\n`;
+                
+                if (response.ok) {
+                    result += `✅ API Response: SUCCESS\n`;
+                    result += `Messages Found: ${data.messages ? data.messages.length : 0}\n`;
+                    result += `Result Size: ${data.resultSizeEstimate || 0}\n`;
+                    result += `Search Query: ${data.searchQuery || 'N/A'}\n`;
+                    result += `Found in Spam: ${data.foundInSpam ? 'Yes' : 'No'}\n\n`;
+                    
+                    if (data.messages && data.messages.length > 0) {
+                        result += `Message Details:\n`;
+                        data.messages.slice(0, 5).forEach((msg, index) => {
+                            result += `${index + 1}. ID: ${msg.id}\n`;
+                            result += `   Thread: ${msg.threadId || 'N/A'}\n`;
+                        });
+                    } else {
+                        result += `❌ No messages found for this email\n`;
+                    }
+                    
+                    result += `\nFull Response:\n${JSON.stringify(data, null, 2)}`;
+                    showResult('specificResult', result, data.messages?.length > 0 ? 'success' : 'warning');
+                } else {
+                    result += `❌ API Response: FAILED\n`;
+                    result += `Status: ${response.status}\n`;
+                    result += `Error: ${JSON.stringify(data, null, 2)}`;
+                    showResult('specificResult', result, 'error');
+                }
+            } catch (error) {
+                showResult('specificResult', `❌ Test failed!\n\nError: ${error.message}`, 'error');
+            }
+        }
+
+        async function checkSpamFolder() {
+            const email = document.getElementById('spamEmail').value.trim();
+            if (!email) {
+                showResult('spamResult', '❌ Please enter an email address', 'error');
+                return;
+            }
+
+            try {
+                showResult('spamResult', `🗑️ Checking spam folder for: ${email}...`, 'warning');
+                
+                // Manual spam query (simulate what worker does)
+                const queries = [
+                    `in:spam to:${email}`,
+                    `in:spam ${email}`,
+                    `in:spam deliveredto:${email}`,
+                    `in:spam subject:${email}`
+                ];
+                
+                let result = `🗑️ SPAM FOLDER CHECK: ${email}\n\n`;
+                
+                // Use debug endpoint to check spam specifically
+                const response = await fetch(`${API_BASE}/api/debug?email=${encodeURIComponent(email)}`);
+                const data = await response.json();
+                
+                if (response.ok && data.searches) {
+                    const spamSearches = data.searches.filter(s => s.query.includes('spam'));
+                    
+                    result += `Spam-specific queries tested: ${spamSearches.length}\n\n`;
+                    
+                    spamSearches.forEach((search, index) => {
+                        result += `SPAM QUERY ${index + 1}: ${search.query}\n`;
+                        result += `Messages Found: ${search.messageCount || 0}\n`;
+                        
+                        if (search.messages && search.messages.length > 0) {
+                            result += `✅ FOUND IN SPAM!\n`;
+                            search.messages.slice(0, 3).forEach((msg, i) => {
+                                result += `  Message ${i + 1}: ${msg.id}\n`;
+                            });
+                        } else {
+                            result += `❌ Not found with this query\n`;
+                        }
+                        result += `\n`;
+                    });
+                    
+                    const totalSpamMessages = spamSearches.reduce((sum, s) => sum + (s.messageCount || 0), 0);
+                    
+                    if (totalSpamMessages > 0) {
+                        result += `🎯 RESULT: ${totalSpamMessages} messages found in SPAM folder!\n`;
+                        result += `✅ This confirms emails are going to spam\n`;
+                        result += `💡 Worker should now find these with includeSpamTrash=true`;
+                    } else {
+                        result += `🎯 RESULT: No messages found in spam folder\n`;
+                        result += `❓ Check if emails are actually being forwarded`;
+                    }
+                    
+                    showResult('spamResult', result, totalSpamMessages > 0 ? 'success' : 'warning');
+                } else {
+                    result += `❌ Spam check failed!\n`;
+                    result += `Error: ${JSON.stringify(data, null, 2)}`;
+                    showResult('spamResult', result, 'error');
+                }
+            } catch (error) {
+                showResult('spamResult', `❌ Spam check error!\n\nError: ${error.message}`, 'error');
+            }
+        }
+
+        async function checkGmailAPI() {
+            try {
+                showResult('apiStatusResult', '🔄 Checking Gmail API status...', 'warning');
+                
+                let result = `📊 GMAIL API STATUS CHECK\n`;
+                result += `Timestamp: ${new Date().toLocaleString()}\n`;
+                result += `${'='.repeat(50)}\n\n`;
+                
+                // Check health endpoint
+                const healthResponse = await fetch(`${API_BASE}/api/health`);
+                const healthData = await healthResponse.json();
+                
+                result += `WORKER STATUS:\n`;
+                result += `Health Check: ${healthResponse.ok ? '✅ OK' : '❌ FAILED'}\n`;
+                result += `Status Code: ${healthResponse.status}\n`;
+                
+                if (healthResponse.ok) {
+                    result += `Worker: ${healthData.worker}\n`;
+                    result += `Version: ${healthData.version}\n`;
+                }
+                result += `\n`;
+                
+                // Test token generation with a simple query
+                const tokenTestResponse = await fetch(`${API_BASE}/api/inbox?email=tokentest@example.com`);
+                const tokenTestData = await tokenTestResponse.json();
+                
+                result += `OAUTH TOKEN TEST:\n`;
+                if (tokenTestResponse.status === 401) {
+                    result += `❌ Token Generation: FAILED\n`;
+                    result += `Issue: Invalid credentials or expired refresh_token\n`;
+                    result += `Error: ${JSON.stringify(tokenTestData, null, 2)}\n`;
+                } else if (tokenTestResponse.ok) {
+                    result += `✅ Token Generation: SUCCESS\n`;
+                    result += `Gmail API Access: Working\n`;
+                } else {
+                    result += `⚠️ Token Test: Inconclusive\n`;
+                    result += `Status: ${tokenTestResponse.status}\n`;
+                }
+                result += `\n`;
+                
+                result += `ENVIRONMENT VARIABLES CHECK:\n`;
+                result += `Required variables:\n`;
+                result += `- GMAIL_CLIENT_ID\n`;
+                result += `- GMAIL_CLIENT_SECRET\n`;
+                result += `- GMAIL_REFRESH_TOKEN\n\n`;
+                
+                if (tokenTestResponse.status === 401) {
+                    result += `❌ One or more environment variables missing/invalid\n`;
+                } else if (tokenTestResponse.ok) {
+                    result += `✅ Environment variables configured correctly\n`;
+                }
+                
+                showResult('apiStatusResult', result, tokenTestResponse.ok ? 'success' : 'error');
+                
+            } catch (error) {
+                showResult('apiStatusResult', `❌ API status check failed!\n\nError: ${error.message}`, 'error');
+            }
+        }
+
+        async function runFullDebug() {
+            const email = document.getElementById('fullDebugEmail').value.trim();
+            if (!email) {
+                showResult('fullDebugResult', '❌ Please enter an email address', 'error');
+                return;
+            }
+
+            try {
+                showResult('fullDebugResult', `🔄 Generating full debug report for: ${email}...\n\nThis may take a moment...`, 'warning');
+                
+                let result = `🐛 FULL DEBUG REPORT\n`;
+                result += `Email: ${email}\n`;
+                result += `Generated: ${new Date().toLocaleString()}\n`;
+                result += `${'='.repeat(70)}\n\n`;
+                
+                // 1. Health check
+                result += `1️⃣ WORKER HEALTH CHECK:\n`;
+                try {
+                    const healthResponse = await fetch(`${API_BASE}/api/health`);
+                    const healthData = await healthResponse.json();
+                    result += `Status: ${healthResponse.ok ? '✅ HEALTHY' : '❌ UNHEALTHY'}\n`;
+                    result += `Response: ${JSON.stringify(healthData, null, 2)}\n\n`;
+                } catch (e) {
+                    result += `❌ Health check failed: ${e.message}\n\n`;
+                }
+                
+                // 2. Debug queries
+                result += `2️⃣ DEBUG QUERIES:\n`;
+                try {
+                    const debugResponse = await fetch(`${API_BASE}/api/debug?email=${encodeURIComponent(email)}`);
+                    const debugData = await debugResponse.json();
+                    
+                    if (debugResponse.ok && debugData.searches) {
+                        debugData.searches.forEach((search, index) => {
+                            result += `Query ${index + 1}: ${search.query}\n`;
+                            result += `Found: ${search.messageCount || 0} messages\n`;
+                            if (search.messageCount > 0) {
+                                result += `✅ SUCCESS - Messages found!\n`;
+                            } else {
+                                result += `❌ No messages\n`;
+                            }
+                            result += `\n`;
+                        });
+                    }
+                } catch (e) {
+                    result += `❌ Debug queries failed: ${e.message}\n\n`;
+                }
+                
+                // 3. Main inbox test
+                result += `3️⃣ MAIN INBOX TEST:\n`;
+                try {
+                    const inboxResponse = await fetch(`${API_BASE}/api/inbox?email=${encodeURIComponent(email)}`);
+                    const inboxData = await inboxResponse.json();
+                    
+                    result += `Status: ${inboxResponse.status}\n`;
+                    result += `Messages: ${inboxData.messages ? inboxData.messages.length : 0}\n`;
+                    result += `Found in Spam: ${inboxData.foundInSpam ? 'Yes' : 'No'}\n`;
+                    result += `Search Query: ${inboxData.searchQuery || 'N/A'}\n\n`;
+                } catch (e) {
+                    result += `❌ Inbox test failed: ${e.message}\n\n`;
+                }
+                
+                // 4. Recommendations
+                result += `4️⃣ RECOMMENDATIONS:\n`;
+                result += `Based on the results above:\n\n`;
+                result += `If no messages found anywhere:\n`;
+                result += `- ✉️ Send a test email to ${email}\n`;
+                result += `- 📧 Check lebaleuyi@gmail.com inbox and spam\n`;
+                result += `- 🔄 Verify email forwarding is working\n\n`;
+                
+                result += `If messages found only in spam queries:\n`;
+                result += `- ✅ Worker update should fix this\n`;
+                result += `- 🗑️ includeSpamTrash=true is now enabled\n`;
+                result += `- 🔄 Redeploy worker and test again\n\n`;
+                
+                result += `If still having issues:\n`;
+                result += `- 🔑 Check OAuth credentials\n`;
+                result += `- 📋 Verify Gmail API permissions\n`;
+                result += `- 🔍 Check Cloudflare Worker logs\n`;
+                
+                showResult('fullDebugResult', result, 'success');
+                
+            } catch (error) {
+                showResult('fullDebugResult', `❌ Full debug failed!\n\nError: ${error.message}`, 'error');
+            }
+        }
+
+        // Auto-run API status check on load
+        document.addEventListener('DOMContentLoaded', () => {
+            console.log('🐛 Gmail Temp Mail Spam Debug Tool loaded');
+            setTimeout(checkGmailAPI, 1000);
+        });
+    </script>
+</body>
+</html>
