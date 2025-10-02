@@ -104,81 +104,8 @@
         </div>
       </header>
 
-      <div id="update-notification" class="update-notification">
-        <span
-          >Temp Mail V2 is out🔥 <br />
-          Check new features🚀 <br />
-          <br />
-          ⬇️ Please rate the new UI ⬇️</span
-        >
 
-        <!-- Poll for user feedback with 5-Star Rating -->
-        <div class="poll">
-          <iframe
-            src="https://docs.google.com/forms/d/e/1FAIpQLSc3IsMzVudebwEwWFRHBQnVf6Frxliya4A5wATDKN_u4s3c0g/viewform?embedded=true"
-            width="100%"
-            height="500"
-            frameborder="0"
-            marginheight="0"
-            marginwidth="0"
-            >Yükleniyor…</iframe
-          >
-        </div>
 
-        <button id="close-notification" class="close-notification">
-          &times;
-        </button>
-
-        <script>
-          let selectedRating = 0;
-
-          // Handle star click
-          document
-            .querySelectorAll(".star-rating .fa-star")
-            .forEach(function (star) {
-              star.addEventListener("click", function () {
-                selectedRating = parseInt(this.getAttribute("data-value"));
-                highlightStars(selectedRating);
-              });
-
-              star.addEventListener("mouseover", function () {
-                const hoverValue = parseInt(this.getAttribute("data-value"));
-                highlightStars(hoverValue);
-              });
-
-              star.addEventListener("mouseout", function () {
-                highlightStars(selectedRating);
-              });
-            });
-
-          function highlightStars(rating) {
-            document
-              .querySelectorAll(".star-rating .fa-star")
-              .forEach(function (star) {
-                if (parseInt(star.getAttribute("data-value")) <= rating) {
-                  star.classList.add("checked");
-                } else {
-                  star.classList.remove("checked");
-                }
-              });
-          }
-
-          function submitPoll() {
-            if (selectedRating > 0) {
-              // You can send this data to your server or handle it as needed
-              console.log(
-                `User rated the new UI as: ${selectedRating} out of 5`
-              );
-              alert("Thank you for your feedback!");
-
-              // Optionally, hide the poll after submission
-              document.querySelector(".poll").style.display = "none";
-            } else {
-              alert("Please select a rating before submitting.");
-            }
-          }
-        </script>
-      </div>
 
   <main id="main-content" class="main-content" role="main" tabindex="-1">
         <div class="card">
@@ -350,28 +277,7 @@
       </footer>
     </div>
 
-    <div id="welcomeMessage" class="welcome-message">
-      <div class="welcome-message-header">
-        <i class="fas fa-info-circle"></i>
-        <h3>Welcome to Temp Mail</h3>
-      </div>
-      <div class="welcome-message-content">
-        <p><strong> If you see a "failed to load" message:</strong></p>
-        <ul>
-          <li>Try clicking the "New Address" button multiple times</li>
-          <li>
-            If the issue persists, please contact me on GitHub or LinkedIn
-          </li>
-        </ul>
-        <br />
-        <p>Thank you for using my project! ❤️</p>
-      </div>
-      <div class="welcome-message-actions">
-        <button onclick="hideWelcomeMessage()" class="icon-button">
-          Got it!
-        </button>
-      </div>
-    </div>
+
 
     <script>
       function showWarning() {
@@ -381,41 +287,7 @@
       }
     </script>
 
-    <script>
-      function hideWelcomeMessage() {
-        const welcomeMessage = document.getElementById("welcomeMessage");
-        welcomeMessage.style.animation = "slideOut 0.5s ease forwards";
-        
-        // Create confetti explosion
-        confetti({
-          particleCount: 150,
-          spread: 180,
-          origin: { y: 0.8 },
-          colors: ['#3B82F6', '#60A5FA', '#2563EB', '#10B981', '#34D399'],
-          startVelocity: 45,
-          gravity: 1.2,
-          scalar: 0.7,
-          ticks: 150
-        });
 
-        setTimeout(() => {
-          welcomeMessage.remove();
-          localStorage.setItem("welcomeMessageSeen", "true");
-        }, 500);
-      }
-
-      document.addEventListener("DOMContentLoaded", () => {
-        // Only show welcome message if not seen before
-        if (!localStorage.getItem("welcomeMessageSeen")) {
-          setTimeout(() => {
-            const welcomeMessage = document.getElementById("welcomeMessage");
-            welcomeMessage.classList.add("show");
-          }, 1000);
-        } else {
-          document.getElementById("welcomeMessage").remove();
-        }
-      });
-    </script>
 
     <style>
       /* Email Generation Options Styling */
